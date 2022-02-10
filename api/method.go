@@ -12,7 +12,7 @@ const (
 	MonitorAPI       APIMethod = "monitor"
 )
 
-func (m APIMethod) IsValid() error {
+func (m APIMethod) Validate() error {
 	switch m {
 	case OpenAccountAPI, CloseAccountAPI, GetBalanceAPI, UpdateBalanceAPI, MonitorAPI:
 		return nil
