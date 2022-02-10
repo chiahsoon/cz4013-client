@@ -5,9 +5,10 @@ import (
 	"net"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/chiahsoon/cz4013/client/api"
-	"github.com/chiahsoon/cz4013/client/helpers"
-	"github.com/chiahsoon/cz4013/client/models"
+	"github.com/chiahsoon/cz4013-client/api"
+	apiModels "github.com/chiahsoon/cz4013-client/api/models"
+	"github.com/chiahsoon/cz4013-client/helpers"
+	"github.com/chiahsoon/cz4013-client/models"
 )
 
 func HandleOpenAccount(action models.UserSelectedAction, conn *net.UDPConn) {
@@ -15,7 +16,7 @@ func HandleOpenAccount(action models.UserSelectedAction, conn *net.UDPConn) {
 		return
 	}
 
-	userInput := api.OpenAccountReq{}
+	userInput := apiModels.OpenAccountReq{}
 	subPrompt := helpers.GetSubPromptsForAction()[action]
 	err := survey.Ask(subPrompt, &userInput)
 	if err != nil {
@@ -30,7 +31,7 @@ func HandleOpenAccount(action models.UserSelectedAction, conn *net.UDPConn) {
 	}
 
 	req := api.Request{
-		Method: api.OpenAccountAPI,
+		Method: string(api.OpenAccountAPI),
 		Data:   userInput,
 	}
 	resp := api.Response{}

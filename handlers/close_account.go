@@ -5,9 +5,10 @@ import (
 	"net"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/chiahsoon/cz4013/client/api"
-	"github.com/chiahsoon/cz4013/client/helpers"
-	"github.com/chiahsoon/cz4013/client/models"
+	"github.com/chiahsoon/cz4013-client/api"
+	apiModels "github.com/chiahsoon/cz4013-client/api/models"
+	"github.com/chiahsoon/cz4013-client/helpers"
+	"github.com/chiahsoon/cz4013-client/models"
 )
 
 func HandleCloseAccount(action models.UserSelectedAction, conn *net.UDPConn) {
@@ -15,7 +16,7 @@ func HandleCloseAccount(action models.UserSelectedAction, conn *net.UDPConn) {
 		return
 	}
 
-	userInput := api.CloseAccountReq{}
+	userInput := apiModels.CloseAccountReq{}
 	subPrompt := helpers.GetSubPromptsForAction()[action]
 	err := survey.Ask(subPrompt, &userInput)
 	if err != nil {
@@ -30,7 +31,7 @@ func HandleCloseAccount(action models.UserSelectedAction, conn *net.UDPConn) {
 	}
 
 	req := api.Request{
-		Method: api.CloseAccountAPI,
+		Method: string(api.CloseAccountAPI),
 		Data:   userInput,
 	}
 	resp := api.Response{}

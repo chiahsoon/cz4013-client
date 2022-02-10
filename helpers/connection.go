@@ -3,7 +3,7 @@ package helpers
 import (
 	"net"
 
-	"github.com/chiahsoon/cz4013/client/api"
+	"github.com/chiahsoon/cz4013-client/api"
 )
 
 func Fetch(conn *net.UDPConn, req interface{}, dest interface{}) error {

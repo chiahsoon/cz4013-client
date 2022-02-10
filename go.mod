@@ -1,4 +1,4 @@
-module github.com/chiahsoon/cz4013/client
+module github.com/chiahsoon/cz4013-client
 
 go 1.15
 

@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/chiahsoon/cz4013/client/models"
+	"github.com/chiahsoon/cz4013-client/models"
 )
 
 func GetMainPrompt() *survey.Select {

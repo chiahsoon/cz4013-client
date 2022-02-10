@@ -6,9 +6,9 @@ import (
 	"net"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/chiahsoon/cz4013/client/handlers"
-	"github.com/chiahsoon/cz4013/client/helpers"
-	"github.com/chiahsoon/cz4013/client/models"
+	"github.com/chiahsoon/cz4013-client/handlers"
+	"github.com/chiahsoon/cz4013-client/helpers"
+	"github.com/chiahsoon/cz4013-client/models"
 )
 
 func connect(host string, port string) (*net.UDPConn, error) {

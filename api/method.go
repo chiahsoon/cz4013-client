@@ -9,12 +9,12 @@ const (
 	CloseAccountAPI  APIMethod = "close"
 	GetBalanceAPI    APIMethod = "balance"
 	UpdateBalanceAPI APIMethod = "update_balance"
-	MonitorMethodAPI APIMethod = "monitor"
+	MonitorAPI       APIMethod = "monitor"
 )
 
 func (m APIMethod) IsValid() error {
 	switch m {
-	case OpenAccountAPI, CloseAccountAPI, UpdateBalanceAPI, MonitorMethodAPI:
+	case OpenAccountAPI, CloseAccountAPI, GetBalanceAPI, UpdateBalanceAPI, MonitorAPI:
 		return nil
 	}
 	return errors.New("invalid api method")

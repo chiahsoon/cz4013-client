@@ -5,9 +5,10 @@ import (
 	"net"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/chiahsoon/cz4013/client/api"
-	"github.com/chiahsoon/cz4013/client/helpers"
-	"github.com/chiahsoon/cz4013/client/models"
+	"github.com/chiahsoon/cz4013-client/api"
+	apiModels "github.com/chiahsoon/cz4013-client/api/models"
+	"github.com/chiahsoon/cz4013-client/helpers"
+	"github.com/chiahsoon/cz4013-client/models"
 )
 
 func HandleMonitor(action models.UserSelectedAction, conn *net.UDPConn) {
@@ -15,7 +16,7 @@ func HandleMonitor(action models.UserSelectedAction, conn *net.UDPConn) {
 		return
 	}
 
-	userInput := api.MonitorReq{}
+	userInput := apiModels.MonitorReq{}
 	subPrompt := helpers.GetSubPromptsForAction()[action]
 	err := survey.Ask(subPrompt, &userInput)
 	if err != nil {
@@ -24,7 +25,7 @@ func HandleMonitor(action models.UserSelectedAction, conn *net.UDPConn) {
 	}
 
 	req := api.Request{
-		Method: api.MonitorMethodAPI,
+		Method: string(api.MonitorAPI),
 		Data:   userInput,
 	}
 
@@ -57,17 +58,17 @@ func listenForCallbacks(conn *net.UDPConn, req *api.Request) error {
 		}
 
 		respData = respData[0:n]
-		resp := &api.CallbackPayload{}
+		resp := &apiModels.CallbackPayload{}
 		err = codec.Decode(respData, &resp)
 		if err != nil {
 			return err
 		}
 
 		fmt.Printf("From %s:\n", addr)
-		switch api.CallbackFunctionId(resp.FunctionId) {
-		case api.UpdateCallback:
+		switch apiModels.CallbackFunctionId(resp.FunctionId) {
+		case apiModels.UpdateCallback:
 			fmt.Println(resp.Data)
-		case api.StopMonitoringCallback:
+		case apiModels.StopMonitoringCallback:
 			fmt.Println("Ending monitor interval ...")
 			return nil
 		default:
