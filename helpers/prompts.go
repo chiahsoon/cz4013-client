@@ -22,41 +22,47 @@ func GetMainPrompt() *survey.Select {
 
 func GetSubPromptsForAction() map[models.UserSelectedAction][]*survey.Question {
 	return map[models.UserSelectedAction][]*survey.Question{
-		models.OpenAccountAction:  {getNameQn(), getCurrencyQn()},
-		models.CloseAccountAction: {getAccountNumberQn(), getNameQn()},
-		models.GetBalanceAction:   {getAccountNumberQn(), getNameQn(), getCurrencyQn()},
-		models.DepositAction:      {getAccountNumberQn(), getNameQn(), getCurrencyQn(), getAmountQn()},
-		models.WithdrawAction:     {getAccountNumberQn(), getNameQn(), getCurrencyQn(), getAmountQn()},
+		models.OpenAccountAction:  {getNameQn(), getCurrencyQn(), getPasswordQn()},
+		models.CloseAccountAction: {getAccountNumberQn(), getNameQn(), getPasswordQn()},
+		models.GetBalanceAction:   {getAccountNumberQn(), getNameQn(), getCurrencyQn(), getPasswordQn()},
+		models.DepositAction:      {getAccountNumberQn(), getNameQn(), getCurrencyQn(), getAmountQn(), getPasswordQn()},
+		models.WithdrawAction:     {getAccountNumberQn(), getNameQn(), getCurrencyQn(), getAmountQn(), getPasswordQn()},
 		models.MonitorAction:      {getIntervalQn()},
 	}
 }
 
-func GetPassword() *survey.Password {
-	return &survey.Password{
-		Message: "What is your password?",
-	}
+func getPasswordQn() *survey.Question {
+	return makePasswordQuestion("password", "What is your password?")
 }
 
 func getNameQn() *survey.Question {
-	return makeQuestion("name", "What is your name?")
+	return makeTextQuestion("name", "What is your name?")
 }
 
 func getAccountNumberQn() *survey.Question {
-	return makeQuestion("accountNumber", "What is your account number?")
+	return makeTextQuestion("accountNumber", "What is your account number?")
 }
 
 func getCurrencyQn() *survey.Question {
-	return makeQuestion("currency", "What is the currency?")
+	return makeTextQuestion("currency", "What is the currency?")
 }
 
 func getAmountQn() *survey.Question {
-	return makeQuestion("amount", "What is the amount?")
+	return makeTextQuestion("amount", "What is the amount?")
 }
 
-func makeQuestion(name string, message string) *survey.Question {
+func makeTextQuestion(name string, message string) *survey.Question {
 	return &survey.Question{
 		Name:     name,
 		Prompt:   &survey.Input{Message: message},
+		Validate: survey.Required,
+	}
+}
+
+func makePasswordQuestion(name string, message string) *survey.Question {
+	return &survey.Question{
+		Name:     name,
+		Prompt:   &survey.Password{Message: message},
 		Validate: survey.Required,
 	}
 }

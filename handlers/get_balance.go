@@ -16,24 +16,16 @@ func HandleGetBalance(action models.UserSelectedAction, conn *net.UDPConn) {
 		return
 	}
 
-	userInput := apiModels.UpdateBalanceReq{}
-	subPrompt := helpers.GetSubPromptsForAction()[action]
-	err := survey.Ask(subPrompt, &userInput)
+	req := api.NewRequest()
+	req.Method = string(api.GetBalanceAPI)
+	input := apiModels.UpdateBalanceReq{}
+
+	err := survey.Ask(helpers.GetSubPromptsForAction()[action], &input)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = survey.AskOne(helpers.GetPassword(), &userInput.Password)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	req := api.Request{
-		Method: string(api.GetBalanceAPI),
-		Data:   userInput,
-	}
 	resp := api.Response{}
 	err = helpers.Fetch(conn, req, &resp)
 	if err != nil {

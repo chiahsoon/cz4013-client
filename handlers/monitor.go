@@ -16,20 +16,18 @@ func HandleMonitor(action models.UserSelectedAction, conn *net.UDPConn) {
 		return
 	}
 
-	userInput := apiModels.MonitorReq{}
-	subPrompt := helpers.GetSubPromptsForAction()[action]
-	err := survey.Ask(subPrompt, &userInput)
+	req := api.NewRequest()
+	req.Method = string(api.MonitorAPI)
+	input := apiModels.MonitorReq{}
+
+	err := survey.Ask(helpers.GetSubPromptsForAction()[action], &input)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	req.Data = input
 
-	req := api.Request{
-		Method: string(api.MonitorAPI),
-		Data:   userInput,
-	}
-
-	// Simulate "blocking" while monitoring
+	// Blocks while monitoring
 	if err = listenForCallbacks(conn, &req); err != nil {
 		fmt.Println(err)
 		return
@@ -44,27 +42,19 @@ func listenForCallbacks(conn *net.UDPConn, req *api.Request) error {
 		return err
 	}
 
-	_, err = conn.Write(encoded)
-	if err != nil {
+	// Initial request to start monitoring
+	if err := helpers.SendRequest(conn, encoded); err != nil {
 		return err
 	}
 
 	// Listen for update callbacks
-	respData := make([]byte, 1024)
 	for {
-		n, addr, err := conn.ReadFromUDP(respData)
-		if err != nil {
-			return err
-		}
-
-		respData = respData[0:n]
 		resp := &apiModels.CallbackPayload{}
-		err = codec.Decode(respData, &resp)
-		if err != nil {
+		if err := helpers.GetResponse(conn, resp); err != nil {
 			return err
 		}
 
-		fmt.Printf("From %s:\n", addr)
+		fmt.Println("Update:")
 		switch apiModels.CallbackFunctionId(resp.FunctionId) {
 		case apiModels.UpdateCallback:
 			fmt.Println(resp.Data)

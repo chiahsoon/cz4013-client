@@ -16,24 +16,17 @@ func HandleOpenAccount(action models.UserSelectedAction, conn *net.UDPConn) {
 		return
 	}
 
-	userInput := apiModels.OpenAccountReq{}
-	subPrompt := helpers.GetSubPromptsForAction()[action]
-	err := survey.Ask(subPrompt, &userInput)
+	req := api.NewRequest()
+	req.Method = string(api.OpenAccountAPI)
+	input := apiModels.OpenAccountReq{}
+
+	err := survey.Ask(helpers.GetSubPromptsForAction()[action], &input)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	req.Data = input
 
-	err = survey.AskOne(helpers.GetPassword(), &userInput.Password)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	req := api.Request{
-		Method: string(api.OpenAccountAPI),
-		Data:   userInput,
-	}
 	resp := api.Response{}
 	err = helpers.Fetch(conn, req, &resp)
 	if err != nil {
