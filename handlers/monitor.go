@@ -54,7 +54,6 @@ func listenForCallbacks(conn *net.UDPConn, req *api.Request) error {
 			return err
 		}
 
-		fmt.Println("Update:")
 		switch apiModels.CallbackFunctionId(resp.FunctionId) {
 		case apiModels.UpdateCallback:
 			fmt.Println(resp.Data)
