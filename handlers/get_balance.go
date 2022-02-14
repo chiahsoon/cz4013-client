@@ -18,13 +18,14 @@ func HandleGetBalance(action models.UserSelectedAction, conn *net.UDPConn) {
 
 	req := api.NewRequest()
 	req.Method = string(api.GetBalanceAPI)
-	input := apiModels.UpdateBalanceReq{}
+	input := apiModels.GetBalanceReq{}
 
 	err := survey.Ask(helpers.GetSubPromptsForAction()[action], &input)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	req.Data = input
 
 	resp := api.Response{}
 	err = helpers.Fetch(conn, req, &resp)
