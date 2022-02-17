@@ -74,5 +74,6 @@ func main() {
 		handlers.HandleDeposit(action, conn)
 		handlers.HandleWithdraw(action, conn)
 		handlers.HandleMonitor(action, conn)
+		handlers.HandleCheckState(action, conn)
 	}
 }

@@ -11,6 +11,7 @@ const (
 	DepositAction
 	WithdrawAction
 	MonitorAction
+	CheckStateAction
 )
 
 var AllActions = []UserSelectedAction{
@@ -20,6 +21,7 @@ var AllActions = []UserSelectedAction{
 	DepositAction,
 	WithdrawAction,
 	MonitorAction,
+	CheckStateAction,
 }
 
 func (a UserSelectedAction) IsValid() error {
@@ -46,6 +48,8 @@ func (a UserSelectedAction) Description() string {
 		return "Withdraw"
 	case MonitorAction:
 		return "Monitor Updates"
+	case CheckStateAction:
+		return "Check Bank State (admin)"
 	default:
 		return "Unknown action"
 	}
