@@ -1,14 +1,13 @@
 package handlers
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/chiahsoon/cz4013-client/api"
 	apiModels "github.com/chiahsoon/cz4013-client/api/models"
-	"github.com/chiahsoon/cz4013-client/helpers"
 	"github.com/chiahsoon/cz4013-client/models"
+	"github.com/chiahsoon/cz4013-client/services"
 )
 
 func HandleMonitor(action models.UserSelectedAction, conn *net.UDPConn) {
@@ -20,16 +19,16 @@ func HandleMonitor(action models.UserSelectedAction, conn *net.UDPConn) {
 	req.Method = string(api.MonitorAPI)
 	input := apiModels.MonitorReq{}
 
-	err := survey.Ask(helpers.GetSubPromptsForAction()[action], &input)
+	err := survey.Ask(services.UI.GetSubPromptsForAction()[action], &input)
 	if err != nil {
-		fmt.Println(err)
+		services.PP.PrintError(err.Error(), "", "")
 		return
 	}
 	req.Data = input
 
 	// Blocks while monitoring
 	if err = listenForCallbacks(conn, &req); err != nil {
-		fmt.Println(err)
+		services.PP.PrintError(err.Error(), "", "")
 		return
 	}
 }
@@ -43,25 +42,25 @@ func listenForCallbacks(conn *net.UDPConn, req *api.Request) error {
 	}
 
 	// Initial request to start monitoring
-	if err := helpers.SendRequest(conn, encoded); err != nil {
+	if err := services.ConnSvc.SendRequest(conn, encoded); err != nil {
 		return err
 	}
 
 	// Listen for update callbacks
 	for {
 		resp := &apiModels.CallbackPayload{}
-		if err := helpers.GetResponse(conn, resp); err != nil {
+		if err := services.ConnSvc.GetResponse(conn, resp); err != nil {
 			return err
 		}
 
 		switch apiModels.CallbackFunctionId(resp.FunctionId) {
 		case apiModels.UpdateCallback:
-			fmt.Println(resp.Data)
+			services.PP.Print(resp.Data, "- Updated Accounts -", "")
 		case apiModels.StopMonitoringCallback:
-			fmt.Println("Ending monitor interval ...")
+			services.PP.PrintMessage("Ending monitor interval ...", "", "")
 			return nil
 		default:
-			fmt.Println("Invalid callback")
+			services.PP.PrintError("Invalid Callback", "", "")
 		}
 	}
 }

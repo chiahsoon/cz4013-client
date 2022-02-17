@@ -23,10 +23,12 @@ var AllActions = []UserSelectedAction{
 }
 
 func (a UserSelectedAction) IsValid() error {
-	switch a {
-	case OpenAccountAction, CloseAccountAction, GetBalanceAction, DepositAction, WithdrawAction, MonitorAction:
-		return nil
+	for _, validAction := range AllActions {
+		if validAction == a {
+			return nil
+		}
 	}
+
 	return errors.New("invalid action")
 }
 

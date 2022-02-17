@@ -1,14 +1,13 @@
 package handlers
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/chiahsoon/cz4013-client/api"
 	apiModels "github.com/chiahsoon/cz4013-client/api/models"
-	"github.com/chiahsoon/cz4013-client/helpers"
 	"github.com/chiahsoon/cz4013-client/models"
+	"github.com/chiahsoon/cz4013-client/services"
 )
 
 func HandleDeposit(action models.UserSelectedAction, conn *net.UDPConn) {
@@ -20,19 +19,23 @@ func HandleDeposit(action models.UserSelectedAction, conn *net.UDPConn) {
 	req.Method = string(api.UpdateBalanceAPI)
 	input := apiModels.UpdateBalanceReq{}
 
-	err := survey.Ask(helpers.GetSubPromptsForAction()[action], &input)
+	err := survey.Ask(services.UI.GetSubPromptsForAction()[action], &input)
 	if err != nil {
-		fmt.Println(err)
+		services.PP.PrintError(err.Error(), "", "")
 		return
 	}
 	req.Data = input
 
 	resp := api.Response{}
-	err = helpers.Fetch(conn, req, &resp)
+	err = services.ConnSvc.Fetch(conn, req, &resp)
 	if err != nil {
-		fmt.Println(err)
+		services.PP.PrintError(err.Error(), "", "")
 		return
 	}
 
-	resp.Display()
+	if resp.HasError() {
+		services.PP.PrintError(resp.ErrMsg, "", "")
+	} else {
+		services.PP.Print(resp.Data, "- Response -", "")
+	}
 }

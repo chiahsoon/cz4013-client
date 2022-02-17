@@ -4,27 +4,28 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/chiahsoon/cz4013-client/config"
 	"github.com/chiahsoon/cz4013-client/handlers"
-	"github.com/chiahsoon/cz4013-client/helpers"
 	"github.com/chiahsoon/cz4013-client/models"
+	"github.com/chiahsoon/cz4013-client/services"
 )
 
-func connect(host string, port string) (*net.UDPConn, error) {
+func connect(host string, port string) *net.UDPConn {
 	addr := fmt.Sprintf("%s:%s", host, port)
 	s, err := net.ResolveUDPAddr("udp4", addr)
 	if err != nil {
-		return nil, nil
+		panic(err)
 	}
 
 	conn, err := net.DialUDP("udp4", nil, s)
 	if err != nil {
-		return nil, nil
+		panic(err)
 	}
 
-	return conn, nil
+	return conn
 }
 
 func main() {
@@ -34,30 +35,29 @@ func main() {
 	flag.Parse()
 
 	// Initialise command line configurations
-	config.Global = &config.Config{
-		InvocationSemantic: config.InvocationSemantic(*semantic),
-		Host:               *host,
-		Port:               *port,
-	}
-
+	config.Global.InvocationSemantic = config.InvocationSemantic(*semantic)
+	config.Global.Host = *host
+	config.Global.Port = *port
 	if err := config.Global.Validate(); err != nil {
-		fmt.Println(err)
-		return
+		panic(err)
 	}
 
 	// Initialise server connection
-	conn, err := connect(config.Global.Host, config.Global.Port)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	conn := connect(config.Global.Host, config.Global.Port)
 	defer conn.Close()
 
+	// Initialise services
+	services.PP = &services.PrettyPrinter{}
+	services.UI = &services.UIService{}
+	services.ConnSvc = &services.ConnectionService{}
+	services.ConnSvc.InvocationSemantic = config.Global.InvocationSemantic
+	services.ConnSvc.TimeoutInterval = time.Duration(10) * time.Second
+	services.ConnSvc.MaxRetryCount = 3
+
 	// Handle user actions
+	actionIdx := -1
 	for {
-		actionIdx := -1
-		err = survey.AskOne(helpers.GetMainPrompt(), &actionIdx)
-		if err != nil {
+		if err := survey.AskOne(services.UI.GetMainPrompt(), &actionIdx); err != nil {
 			fmt.Println(err)
 			return
 		}
