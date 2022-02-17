@@ -4,12 +4,15 @@ import "errors"
 
 type UserSelectedAction int
 
+// Note: Action value must match index in AllActions
+
 const (
 	OpenAccountAction UserSelectedAction = iota
 	CloseAccountAction
 	GetBalanceAction
 	DepositAction
 	WithdrawAction
+	TransferAction
 	MonitorAction
 	CheckStateAction
 )
@@ -20,6 +23,7 @@ var AllActions = []UserSelectedAction{
 	GetBalanceAction,
 	DepositAction,
 	WithdrawAction,
+	TransferAction,
 	MonitorAction,
 	CheckStateAction,
 }
@@ -50,6 +54,8 @@ func (a UserSelectedAction) Description() string {
 		return "Monitor Updates"
 	case CheckStateAction:
 		return "Check Bank State (admin)"
+	case TransferAction:
+		return "Transfer Funds"
 	default:
 		return "Unknown action"
 	}

@@ -90,5 +90,5 @@ func (pp *PrettyPrinter) printBoundary(printDataFn func(interface{}), header, fo
 	if len(footer) > 0 {
 		fmt.Println(footer)
 	}
-	// fmt.Println(printBoundary)
+	fmt.Println(printBoundary)
 }

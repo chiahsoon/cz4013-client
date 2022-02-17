@@ -30,6 +30,7 @@ func (ui *UIService) GetSubPromptsForAction() map[models.UserSelectedAction][]*s
 		models.DepositAction:      {ui.getAccountNumberQn(), ui.getNameQn(), ui.getCurrencyQn(), ui.getAmountQn(), ui.getPasswordQn()},
 		models.WithdrawAction:     {ui.getAccountNumberQn(), ui.getNameQn(), ui.getCurrencyQn(), ui.getAmountQn(), ui.getPasswordQn()},
 		models.MonitorAction:      {ui.getIntervalQn()},
+		models.TransferAction:     {ui.getAccountNumberQn(), ui.getDestAccountNumberQn(), ui.getNameQn(), ui.getCurrencyQn(), ui.getAmountQn(), ui.getPasswordQn()},
 	}
 }
 
@@ -43,6 +44,10 @@ func (ui *UIService) getNameQn() *survey.Question {
 
 func (ui *UIService) getAccountNumberQn() *survey.Question {
 	return ui.makeTextQuestion("accountNumber", "What is your account number?")
+}
+
+func (ui *UIService) getDestAccountNumberQn() *survey.Question {
+	return ui.makeTextQuestion("destAccountNumber", "What is the destination account number?")
 }
 
 func (ui *UIService) getCurrencyQn() *survey.Question {

@@ -68,6 +68,7 @@ func main() {
 			return
 		}
 
+		fmt.Println(action)
 		handlers.HandleOpenAccount(action, conn)
 		handlers.HandleCloseAccount(action, conn)
 		handlers.HandleGetBalance(action, conn)
@@ -75,5 +76,6 @@ func main() {
 		handlers.HandleWithdraw(action, conn)
 		handlers.HandleMonitor(action, conn)
 		handlers.HandleCheckState(action, conn)
+		handlers.HandleTransfer(action, conn)
 	}
 }
