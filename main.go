@@ -35,6 +35,7 @@ func main() {
 	flag.Parse()
 
 	// Initialise command line configurations
+	config.Global = &config.Config{}
 	config.Global.InvocationSemantic = config.InvocationSemantic(*semantic)
 	config.Global.Host = *host
 	config.Global.Port = *port

@@ -10,9 +10,9 @@ import (
 )
 
 type ConnectionService struct {
-	InvocationSemantic config.InvocationSemantic
-	TimeoutInterval    time.Duration
-	MaxRetryCount      int
+	config.InvocationSemantic
+	TimeoutInterval time.Duration
+	MaxRetryCount   int
 }
 
 func (cs *ConnectionService) Fetch(conn *net.UDPConn, req interface{}, dest interface{}) error {
