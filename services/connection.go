@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/chiahsoon/cz4013-client/api"
+	"github.com/chiahsoon/cz4013-client/api/codec"
 	"github.com/chiahsoon/cz4013-client/config"
 )
 
@@ -16,12 +16,12 @@ type ConnectionService struct {
 }
 
 func (cs *ConnectionService) Fetch(conn *net.UDPConn, req interface{}, dest interface{}) error {
-	codec := api.Codec{}
-	encoded, err := codec.Encode(req)
+	// Assumes dest is already a pointer
+	c := codec.Codec{}
+	encoded, err := c.Encode(req)
 	if err != nil {
 		return err
 	}
-
 	if cs.InvocationSemantic == config.Maybe {
 		return cs.fetch(conn, encoded, dest)
 	}
@@ -47,18 +47,20 @@ func (cs *ConnectionService) SendRequest(conn *net.UDPConn, reqData []byte) erro
 }
 
 func (cs *ConnectionService) GetResponse(conn *net.UDPConn, dest interface{}) error {
+	// Assumes dest is already a pointer
 	respData := make([]byte, 1024)
 	n, _, err := conn.ReadFromUDP(respData)
 	if err != nil {
 		return err
 	}
-
 	respData = respData[0:n]
-	codec := api.Codec{}
-	return codec.Decode(respData, &dest)
+	c := codec.Codec{}
+	err = c.Decode(respData, dest)
+	return err
 }
 
 func (cs *ConnectionService) fetch(conn *net.UDPConn, reqData []byte, dest interface{}) error {
+	// Assumes dest is already a pointer
 	if err := cs.SendRequest(conn, reqData); err != nil {
 		return err
 	}

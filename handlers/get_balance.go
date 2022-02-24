@@ -5,6 +5,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/chiahsoon/cz4013-client/api"
+	"github.com/chiahsoon/cz4013-client/api/codec"
 	apiModels "github.com/chiahsoon/cz4013-client/api/models"
 	"github.com/chiahsoon/cz4013-client/models"
 	"github.com/chiahsoon/cz4013-client/services"
@@ -36,6 +37,14 @@ func HandleGetBalance(action models.UserSelectedAction, conn *net.UDPConn) {
 	if resp.HasError() {
 		services.PP.PrintError(resp.ErrMsg, "", "")
 	} else {
-		services.PP.Print(resp.Data, "- Response -", "")
+		// !REVIEW
+		c := codec.Codec{}
+		var respData apiModels.GetBalanceResp
+		if err := c.DecodeAsInterface(resp.Data, &respData); err != nil {
+			services.PP.PrintError(err.Error(), "", "")
+			return
+		}
+
+		services.PP.Print(respData, "- Response -", "")
 	}
 }

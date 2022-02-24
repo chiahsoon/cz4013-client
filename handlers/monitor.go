@@ -5,6 +5,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/chiahsoon/cz4013-client/api"
+	"github.com/chiahsoon/cz4013-client/api/codec"
 	apiModels "github.com/chiahsoon/cz4013-client/api/models"
 	"github.com/chiahsoon/cz4013-client/models"
 	"github.com/chiahsoon/cz4013-client/services"
@@ -27,16 +28,16 @@ func HandleMonitor(action models.UserSelectedAction, conn *net.UDPConn) {
 	req.Data = input
 
 	// Blocks while monitoring
-	if err = listenForCallbacks(conn, &req); err != nil {
+	if err = listenForCallbacks(conn, req); err != nil {
 		services.PP.PrintError(err.Error(), "", "")
 		return
 	}
 }
 
-func listenForCallbacks(conn *net.UDPConn, req *api.Request) error {
+func listenForCallbacks(conn *net.UDPConn, req api.Request) error {
 	// Initiate monitoring
-	codec := api.Codec{}
-	encoded, err := codec.Encode(req)
+	c := codec.Codec{}
+	encoded, err := c.Encode(req)
 	if err != nil {
 		return err
 	}
@@ -48,14 +49,21 @@ func listenForCallbacks(conn *net.UDPConn, req *api.Request) error {
 
 	// Listen for update callbacks
 	for {
-		resp := &apiModels.CallbackPayload{}
-		if err := services.ConnSvc.GetResponse(conn, resp); err != nil {
+		resp := apiModels.CallbackPayload{}
+		if err := services.ConnSvc.GetResponse(conn, &resp); err != nil {
 			return err
+		}
+
+		// !REVIEW
+		var respData string
+		if err := c.DecodeAsInterface(resp.Data, &respData); err != nil {
+			services.PP.PrintError(err.Error(), "", "")
+			continue
 		}
 
 		switch apiModels.CallbackFunctionId(resp.FunctionId) {
 		case apiModels.UpdateCallback:
-			services.PP.Print(resp.Data, "- Updated Accounts -", "")
+			services.PP.Print(respData, "- Updated Accounts -", "")
 		case apiModels.StopMonitoringCallback:
 			services.PP.PrintMessage("Ending monitor interval ...", "", "")
 			return nil
