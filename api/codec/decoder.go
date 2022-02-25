@@ -13,27 +13,29 @@ var (
 	endianness = binary.BigEndian
 )
 
-// !Does not allow map[interface{}]interface{}
 type Decoder struct{}
 
 func (dec *Decoder) UnmarshallFromInterface(src interface{}, dest interface{}) error {
-	// If an interface is encoded by Encoder, interface fields will be encoded with bytes underneath
-	// When Decoder decodes structs/maps with these fields, they are left as bytes (see unmarshallInterface)
-
+	/*
+		- When encoded by Encoder, interface fields are left as bytes
+		- When Decoder decodes structs/maps with these fields, they are left as bytes (see unmarshallInterface)
+	*/
 	if reflect.ValueOf(dest).Kind() != reflect.Ptr {
 		return errors.New("dest is not a ptr")
 	}
 
 	bytes, ok := src.([]byte)
 	if !ok {
-		return errors.New("src is not a byte slice nor string")
+		return errors.New("src interface not encoded as bytes")
 	}
 
 	return dec.Unmarshall(bytes, dest)
 }
 
 func (dec *Decoder) Unmarshall(data []byte, dest interface{}) error {
-	// Struct fields or map values cannot be interface{}
+	if reflect.ValueOf(dest).Kind() != reflect.Ptr {
+		return errors.New("dest is not a ptr")
+	}
 	buf := bytes.NewBuffer(data)
 	return dec.unmarshall(buf, dest)
 }
@@ -50,6 +52,8 @@ func (dec *Decoder) unmarshall(buf *bytes.Buffer, dest interface{}) error {
 		return dec.unmarshallPtr(buf, dest)
 	case reflect.Interface:
 		return dec.unmarshallInterface(buf, dest)
+	case Time:
+		return dec.unmarshallTime(buf, dest)
 	case reflect.Struct:
 		return dec.unmarshallStruct(buf, dest)
 	case reflect.Map:
@@ -64,8 +68,6 @@ func (dec *Decoder) unmarshall(buf *bytes.Buffer, dest interface{}) error {
 		reflect.Float32, reflect.Float64,
 		reflect.Complex64, reflect.Complex128:
 		return dec.unmarshallNumber(buf, dest)
-	case 27:
-		return dec.unmarshallTime(buf, dest)
 	case reflect.Invalid,
 		reflect.Uintptr, reflect.UnsafePointer,
 		reflect.Chan, reflect.Func:
@@ -76,15 +78,16 @@ func (dec *Decoder) unmarshall(buf *bytes.Buffer, dest interface{}) error {
 }
 
 func (dec *Decoder) unmarshallPtr(buf *bytes.Buffer, dest interface{}) error {
-	// dest will be at least **type
-	rv := reflect.ValueOf(dest)
-	ptrRv := rv.Elem()
+	// dest is at least **type
+	destRv := reflect.ValueOf(dest).Elem()
+
 	dereferencedType := reflect.TypeOf(dest).Elem().Elem()
-	ptrRv.Set(reflect.New(dereferencedType))
-	return dec.unmarshall(buf, ptrRv.Interface())
+	destRv.Set(reflect.New(dereferencedType)) // Initialise address
+	return dec.unmarshall(buf, destRv.Interface())
 }
 
 func (dec *Decoder) unmarshallTime(buf *bytes.Buffer, dest interface{}) error {
+	// Format: [kind (8-bit)][UnixMilli as int]
 	var timeUnixData int64
 	if err := dec.unmarshall(buf, &timeUnixData); err != nil {
 		return err
@@ -93,7 +96,8 @@ func (dec *Decoder) unmarshallTime(buf *bytes.Buffer, dest interface{}) error {
 	timeData := time.UnixMilli(timeUnixData)
 	timePtrRv := reflect.ValueOf(dest)
 	timeRv := timePtrRv.Elem()
-	// !CHANGE
+
+	// Go to dereferenced value and initialise
 	destType := reflect.TypeOf(dest).Elem()
 	if destType.Kind() == reflect.Ptr {
 		for destType.Kind() == reflect.Ptr {
@@ -106,14 +110,14 @@ func (dec *Decoder) unmarshallTime(buf *bytes.Buffer, dest interface{}) error {
 			timeRv = timeRv.Elem()
 		}
 	}
-	// !END CHANGE
 
 	timeRv.Set(reflect.ValueOf(timeData))
 	return nil
 }
 
 func (dec *Decoder) unmarshallInterface(buf *bytes.Buffer, dest interface{}) error {
-	dataLength, err := dec.readInt64(buf)
+	// Format: [kind (8-bit)][#bytes(8-bit) for length][length][value]
+	dataLength, err := dec.readLength64(buf)
 	if err != nil {
 		return err
 	}
@@ -124,15 +128,14 @@ func (dec *Decoder) unmarshallInterface(buf *bytes.Buffer, dest interface{}) err
 		return err
 	}
 
-	// TODO: Follow up
-	bytesPtrRv := reflect.ValueOf(dest)
-	bytesRv := bytesPtrRv.Elem()
-	bytesRv.Set(reflect.ValueOf(data))
+	destRv := reflect.ValueOf(dest).Elem()
+	destRv.Set(reflect.ValueOf(data))
 	return nil
 }
 
 func (dec *Decoder) unmarshallStruct(buf *bytes.Buffer, dest interface{}) error {
-	numFields, err := dec.readInt8(buf)
+	// Format: [kind (8-bit)][#bytes(8-bit) for #fields][#fields][field-value pairs]
+	numFields, err := dec.readLength64(buf)
 	if err != nil {
 		return err
 	}
@@ -140,7 +143,7 @@ func (dec *Decoder) unmarshallStruct(buf *bytes.Buffer, dest interface{}) error 
 	structPtrRv := reflect.ValueOf(dest)
 	structRv := structPtrRv.Elem()
 
-	// !CHANGE
+	// Go to dereferenced value and initialise
 	destType := reflect.TypeOf(dest).Elem()
 	if destType.Kind() == reflect.Ptr {
 		for destType.Kind() == reflect.Ptr {
@@ -153,13 +156,15 @@ func (dec *Decoder) unmarshallStruct(buf *bytes.Buffer, dest interface{}) error 
 			structRv = structRv.Elem()
 		}
 	}
-	// !END CHANGE
 
 	for idx := 0; idx < int(numFields); idx++ {
+		// Unmarshall field name
 		var fieldName string
 		if err := dec.unmarshall(buf, &fieldName); err != nil {
 			return err
 		}
+
+		// Initialise and unmarshall field value
 		structFieldRv := structRv.FieldByName(fieldName)
 		structFieldType := structFieldRv.Type()
 		valuePtrRv := reflect.New(structFieldType)
@@ -177,17 +182,22 @@ func (dec *Decoder) unmarshallStruct(buf *bytes.Buffer, dest interface{}) error 
 }
 
 func (dec *Decoder) unmarshallMap(buf *bytes.Buffer, dest interface{}) error {
-	// Format: [number (64-bits) of pairs][pairs]
-	numPairs, err := dec.readInt64(buf)
+	// Format: [kind (8-bit)][#bytes(8-bit) for #kv-pairs][#kv-pairs][kv-pairs]
+	/*
+		- If dest key is interface{} type, it will be left as bytes
+		- Therefore, impossible to index with the actual value of the key because
+		of extra encoding data (kind, length, etc.)
+	*/
+
+	numPairs, err := dec.readLength64(buf)
 	if err != nil {
 		return err
 	}
 
 	mapPtrRv := reflect.ValueOf(dest)
 	mapRv := mapPtrRv.Elem()
-	var mapType, keyType, valueType reflect.Type
 
-	// !CHANGE
+	// Go to dereferenced value and initialise
 	destType := reflect.TypeOf(dest).Elem()
 	if destType.Kind() == reflect.Ptr {
 		for destType.Kind() == reflect.Ptr {
@@ -199,29 +209,24 @@ func (dec *Decoder) unmarshallMap(buf *bytes.Buffer, dest interface{}) error {
 		for mapRv.Kind() == reflect.Ptr {
 			mapRv = mapRv.Elem()
 		}
-
-		mapType = mapRv.Type()
-		keyType = mapType.Key()
-		valueType = mapType.Elem()
-	} else {
-		mapType = mapRv.Type()
-		// If keyType is interface{}, impossible to get desired type
-		keyType = mapType.Key()
-		valueType = mapType.Elem()
 	}
-	// !END CHANGE
 
-	// Avoid nil errors
+	mapType := mapRv.Type()
+	keyType := mapType.Key()
+	valueType := mapType.Elem()
+	// Initialise map to avoid nil errors
 	nonNilMap := reflect.MakeMap(mapType)
 	mapRv.Set(nonNilMap)
 
 	for idx := 0; idx < int(numPairs); idx++ {
+		// Unmarshall key
 		keyPtrRv := reflect.New(keyType)
 		keyPtr := keyPtrRv.Interface()
 		if err := dec.unmarshall(buf, keyPtr); err != nil {
 			return err
 		}
 
+		// Unmarshall value
 		valuePtrRv := reflect.New(valueType)
 		valuePtr := valuePtrRv.Interface()
 		if err := dec.unmarshall(buf, valuePtr); err != nil {
@@ -237,8 +242,8 @@ func (dec *Decoder) unmarshallMap(buf *bytes.Buffer, dest interface{}) error {
 }
 
 func (dec *Decoder) unmarshallIterable(buf *bytes.Buffer, dest interface{}) error {
-	// Format: [number (64-bits) of items][iterable items]
-	numItems, err := dec.readInt64(buf)
+	// Format: [kind (8-bit)][#bytes(8-bit) for length][length][value]
+	numItems, err := dec.readLength64(buf)
 	if err != nil {
 		return err
 	}
@@ -247,7 +252,7 @@ func (dec *Decoder) unmarshallIterable(buf *bytes.Buffer, dest interface{}) erro
 	iterableRv := iterablePtrRv.Elem()
 	itemType := iterableRv.Type()
 
-	// !CHANGE
+	// Go to dereferenced value and initialise
 	destType := reflect.TypeOf(dest).Elem()
 	if destType.Kind() == reflect.Ptr {
 		for destType.Kind() == reflect.Ptr {
@@ -262,13 +267,14 @@ func (dec *Decoder) unmarshallIterable(buf *bytes.Buffer, dest interface{}) erro
 
 		itemType = iterableRv.Type()
 	}
-	// !END CHANGE
 
-	// Avoid out-of-bounds error
-	newSizedSlice := reflect.MakeSlice(itemType, int(numItems), int(numItems))
+	// Initialise to avoid out-of-bounds error
+	size := int(numItems)
+	newSizedSlice := reflect.MakeSlice(itemType, size, size)
 	iterableRv.Set(newSizedSlice)
 
 	for idx := 0; idx < int(numItems); idx++ {
+		// Unmarshall item
 		itemRv := iterableRv.Index(idx)
 		itemPtrRv := itemRv.Addr()
 		itemPtr := itemPtrRv.Interface()
@@ -281,8 +287,8 @@ func (dec *Decoder) unmarshallIterable(buf *bytes.Buffer, dest interface{}) erro
 }
 
 func (dec *Decoder) unmarshallString(buf *bytes.Buffer, dest interface{}) error {
-	// Format: [value length (64-bit)][value]
-	length, err := dec.readInt64(buf)
+	// Format: [kind (8-bit)][#bytes(8-bit) for length][length][value]
+	length, err := dec.readLength64(buf)
 	if err != nil {
 		return err
 	}
@@ -296,7 +302,7 @@ func (dec *Decoder) unmarshallString(buf *bytes.Buffer, dest interface{}) error 
 	strPtrRv := reflect.ValueOf(dest)
 	strRv := strPtrRv.Elem()
 
-	// !CHANGE
+	// Go to dereferenced value and initialise
 	destType := reflect.TypeOf(dest).Elem()
 	if destType.Kind() == reflect.Ptr {
 		for destType.Kind() == reflect.Ptr {
@@ -309,7 +315,6 @@ func (dec *Decoder) unmarshallString(buf *bytes.Buffer, dest interface{}) error 
 			strRv = strRv.Elem()
 		}
 	}
-	// !END CHANGE
 
 	// Dealing with aliases
 	strRv.Set(reflect.ValueOf(string(strDataBytes)).Convert(strRv.Type()))
@@ -317,13 +322,13 @@ func (dec *Decoder) unmarshallString(buf *bytes.Buffer, dest interface{}) error 
 }
 
 func (dec *Decoder) unmarshallNumber(buf *bytes.Buffer, dest interface{}) error {
-	// Format: [number length (8-bit)][value]
-
-	length, err := dec.readInt8(buf)
+	// Format: [kind (8-bit)][#bytes (8-bit)][value]
+	numByteForNumVal, err := buf.ReadByte()
 	if err != nil {
 		return err
 	}
-	data := make([]byte, length)
+
+	data := make([]byte, numByteForNumVal)
 	_, err = buf.Read(data)
 	if err != nil {
 		return err
@@ -333,7 +338,7 @@ func (dec *Decoder) unmarshallNumber(buf *bytes.Buffer, dest interface{}) error 
 	destType := reflect.TypeOf(dest).Elem()
 	numRv := numPtrRv.Elem()
 
-	// !CHANGE
+	// Go to dereferenced value and initialise
 	if destType.Kind() == reflect.Ptr {
 		for destType.Kind() == reflect.Ptr {
 			destType = destType.Elem()
@@ -346,43 +351,56 @@ func (dec *Decoder) unmarshallNumber(buf *bytes.Buffer, dest interface{}) error 
 			numRv = numRv.Elem()
 		}
 	}
-	// !END CHANGE
 
-	numVal, err := dec.bytesToFixedNum(data, destType)
-	if err != nil {
-		return err
-	}
-
-	// Cast to int/uint (if necessary) which are machine dependent types
+	// Deal with different type in encoded data and dest type
 	var finalVal interface{}
-	if destType.Kind() == reflect.Int {
-		switch reflect.ValueOf(numVal).Kind() {
-		case reflect.Int8:
-			finalVal = int(numVal.(int8))
-		case reflect.Int16:
-			finalVal = int(numVal.(int16))
-		case reflect.Int32:
-			finalVal = int(numVal.(int32))
-		case reflect.Int64:
-			finalVal = int(numVal.(int64))
-		default:
-			return fmt.Errorf("invalid int type: %d", reflect.ValueOf(numVal).Kind())
-		}
-	} else if destType.Kind() == reflect.Uint {
-		switch reflect.ValueOf(numVal).Kind() {
-		case reflect.Uint8:
-			finalVal = uint(numVal.(uint8))
-		case reflect.Uint16:
-			finalVal = uint(numVal.(uint16))
-		case reflect.Uint32:
-			finalVal = uint(numVal.(uint32))
-		case reflect.Uint64:
-			finalVal = uint(numVal.(uint64))
-		default:
-			return fmt.Errorf("invalid uint type: %d", reflect.ValueOf(numVal).Kind())
+	if numRv.Kind() == reflect.Float32 || numRv.Kind() == reflect.Float64 {
+		if destType.Kind() == reflect.Float64 && numByteForNumVal == 4 {
+			numVal, err := dec.bytesToSizedNum(data, reflect.TypeOf(float32(0)))
+			if err != nil {
+				return err
+			}
+			finalVal = float64(numVal.(float32))
+		} else if destType.Kind() == reflect.Float32 && numByteForNumVal == 8 {
+			numVal, err := dec.bytesToSizedNum(data, reflect.TypeOf(float64(0)))
+			if err != nil {
+				return err
+			}
+			finalVal = float32(numVal.(float64))
+		} else {
+			finalVal, err = dec.bytesToSizedNum(data, destType)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
+		// Reduce/Pad integer values
+		destSize := destType.Bits() / 8
+		if destSize < int(numByteForNumVal) {
+			data = data[len(data)-destSize:]
+		} else if destSize > int(numByteForNumVal) {
+			// Pad with 0 (pos) or 255 (neg)
+			pad := make([]byte, destSize-len(data))
+			if data[0] >= 128 {
+				for idx := 0; idx < len(pad); idx++ {
+					pad[idx] = 255
+				}
+			}
+			data = append(pad, data...)
+		}
+
+		numVal, err := dec.bytesToSizedNum(data, destType)
+		if err != nil {
+			return err
+		}
+
+		// Cast to int/uint (if necessary) - machine dependent types
 		finalVal = numVal
+		if destType.Kind() == reflect.Int {
+			finalVal = reflect.ValueOf(numVal).Convert(kindToType[reflect.Int]).Interface()
+		} else if destType.Kind() == reflect.Uint {
+			finalVal = reflect.ValueOf(numVal).Convert(kindToType[reflect.Uint]).Interface()
+		}
 	}
 
 	// Dealing with aliases
@@ -390,54 +408,87 @@ func (dec *Decoder) unmarshallNumber(buf *bytes.Buffer, dest interface{}) error 
 	return nil
 }
 
-func (dec *Decoder) readInt64(buf *bytes.Buffer) (int64, error) {
-	dataBytes := make([]byte, 8)
-	_, err := buf.Read(dataBytes)
+func (dec *Decoder) readLength64(buf *bytes.Buffer) (int64, error) {
+	numBytesForLength, err := buf.ReadByte()
+	if err != nil {
+		return 0, nil
+	}
+
+	bytesForLength := make([]byte, numBytesForLength)
+	_, err = buf.Read(bytesForLength)
 	if err != nil {
 		return 0, err
 	}
 
-	var num int64
-	numI, err := dec.bytesToFixedNum(dataBytes, reflect.TypeOf(num))
+	numAsInterface, err := dec.bytesToSizedNum(bytesForLength, kindToType[reflect.Int64])
 	if err != nil {
 		return 0, err
 	}
 
-	num, ok := numI.(int64)
+	num, ok := numAsInterface.(int64)
 	if !ok {
 		return 0, errors.New("failed to convert length interface to int64")
 	}
 	return num, nil
 }
 
-func (dec *Decoder) readInt8(buf *bytes.Buffer) (int8, error) {
-	lengthByte, err := buf.ReadByte()
-	if err != nil {
-		return 0, err
-	}
-
-	return int8(lengthByte), nil
-}
-
-func (dec *Decoder) bytesToFixedNum(data []byte, targetType reflect.Type) (interface{}, error) {
+func (dec *Decoder) bytesToSizedNum(data []byte, targetType reflect.Type) (interface{}, error) {
 	if targetType.Kind() == reflect.Ptr || targetType.Kind() == reflect.Interface {
 		return nil, errors.New("cannot convert bytes to dest type pointer or interface")
 	}
 
 	// If target is not fixed, change to fixed type of same nature
-	// TODO Confirm fixed num size
-	resPtrRv := reflect.New(targetType)
+	targetNumBytes := targetType.Bits() / 8
+	resultsPtrRv := reflect.New(targetType)
 	if targetType.Kind() == reflect.Int {
-		resPtrRv = reflect.ValueOf(new(int64))
+		resultsPtrRv = dec.getIntRvForNumBytes(targetNumBytes)
 	} else if targetType.Kind() == reflect.Uint {
-		resPtrRv = reflect.ValueOf(new(uint64))
+		resultsPtrRv = dec.getUintRvForNumBytes(targetNumBytes)
 	}
 
-	buf := bytes.NewBuffer(data)
-	resPtr := resPtrRv.Interface()
-	if err := binary.Read(buf, endianness, resPtr); err != nil {
+	// Pad with 0s if targetType requires more bytes
+	resultsData := make([]byte, 0)
+	if endianness == binary.BigEndian {
+		numBytesRequried := targetNumBytes
+		for i := 0; i < numBytesRequried-len(data); i++ {
+			resultsData = append(resultsData, 0)
+		}
+
+		resultsData = append(resultsData, data...)
+	} else {
+		resultsData = append(resultsData, data...)
+		numBytesRequried := targetNumBytes
+		for i := 0; i < numBytesRequried-len(data); i++ {
+			resultsData = append(resultsData, 0)
+		}
+	}
+
+	buf := bytes.NewBuffer(resultsData)
+	if err := binary.Read(buf, endianness, resultsPtrRv.Interface()); err != nil {
 		return nil, err
 	}
 
-	return resPtrRv.Elem().Interface(), nil
+	return resultsPtrRv.Elem().Interface(), nil
+}
+
+func (dec *Decoder) getIntRvForNumBytes(numBits int) reflect.Value {
+	if numBits == 1 {
+		return reflect.ValueOf(new(int8))
+	} else if numBits == 2 {
+		return reflect.ValueOf(new(int16))
+	} else if numBits == 4 {
+		return reflect.ValueOf(new(int32))
+	}
+	return reflect.ValueOf(new(int64))
+}
+
+func (dec *Decoder) getUintRvForNumBytes(numBits int) reflect.Value {
+	if numBits == 1 {
+		return reflect.ValueOf(new(uint8))
+	} else if numBits == 2 {
+		return reflect.ValueOf(new(uint16))
+	} else if numBits == 4 {
+		return reflect.ValueOf(new(uint32))
+	}
+	return reflect.ValueOf(new(uint64))
 }

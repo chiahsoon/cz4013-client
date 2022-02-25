@@ -65,7 +65,7 @@ func listenForCallbacks(conn *net.UDPConn, req api.Request) error {
 		case apiModels.UpdateCallback:
 			services.PP.Print(respData, "- Updated Accounts -", "")
 		case apiModels.StopMonitoringCallback:
-			services.PP.PrintMessage("Ending monitor interval ...", "", "")
+			services.PP.PrintMessage(respData, "", "")
 			return nil
 		default:
 			services.PP.PrintError("Invalid Callback", "", "")
