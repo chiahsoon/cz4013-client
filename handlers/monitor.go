@@ -54,7 +54,6 @@ func listenForCallbacks(conn *net.UDPConn, req api.Request) error {
 			return err
 		}
 
-		// !REVIEW
 		var respData string
 		if err := c.DecodeAsInterface(resp.Data, &respData); err != nil {
 			services.PP.PrintError(err.Error(), "", "")

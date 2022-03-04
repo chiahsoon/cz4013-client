@@ -17,7 +17,7 @@ type Request struct {
 func NewRequest() Request {
 	req := Request{RSN: int(*RSN)}
 	atomic.AddInt64(RSN, 1)
-	req.SentAt = time.Now() // !REVIEW
+	req.SentAt = time.Now()
 	return req
 }
 

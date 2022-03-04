@@ -2,7 +2,7 @@ package api
 
 type Response struct {
 	ErrMsg string
-	Data   interface{} // !REVIEW Usages
+	Data   interface{}
 }
 
 func (r *Response) HasError() bool {

@@ -37,7 +37,6 @@ func HandleTransfer(action models.UserSelectedAction, conn *net.UDPConn) {
 	if resp.HasError() {
 		services.PP.PrintError(resp.ErrMsg, "", "")
 	} else {
-		// !REVIEW
 		c := codec.Codec{}
 		var respData apiModels.TransferResp
 		if err := c.DecodeAsInterface(resp.Data, &respData); err != nil {
