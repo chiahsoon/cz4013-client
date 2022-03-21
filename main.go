@@ -31,7 +31,7 @@ func connect(host string, port string) *net.UDPConn {
 func main() {
 	host := flag.String("host", "localhost", "IP address of the server")
 	port := flag.String("port", "5000", "Port of the server")
-	semantic := flag.String("semantic", string(config.AtLeastOnce), "Invocation Semantic - At-Least-Once (Default), At-Most-Once")
+	semantic := flag.String("semantic", string(config.AtLeastOnce), "Invocation Semantic - at-least-once (Default), at-most-once")
 	flag.Parse()
 
 	// Initialise command line configurations
@@ -52,8 +52,8 @@ func main() {
 	services.UI = &services.UIService{}
 	services.ConnSvc = &services.ConnectionService{}
 	services.ConnSvc.InvocationSemantic = config.Global.InvocationSemantic
-	services.ConnSvc.TimeoutInterval = time.Duration(10) * time.Second
-	services.ConnSvc.MaxRetryCount = 3
+	services.ConnSvc.TimeoutInterval = time.Duration(1) * time.Second
+	services.ConnSvc.MaxRetryCount = -1
 
 	// Handle user actions
 	actionIdx := -1

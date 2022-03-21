@@ -31,6 +31,7 @@ func (cs *ConnectionService) Fetch(conn *net.UDPConn, req interface{}, dest inte
 		for {
 			conn.SetDeadline(time.Now().Add(cs.TimeoutInterval))
 			if err := cs.fetch(conn, encoded, dest); err != nil {
+				PP.PrintError(err.Error(), "", "")
 				continue
 			}
 			return nil
