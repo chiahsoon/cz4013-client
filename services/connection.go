@@ -27,12 +27,22 @@ func (cs *ConnectionService) Fetch(conn *net.UDPConn, req interface{}, dest inte
 	}
 
 	defer conn.SetDeadline(time.Time{}) // Reset to no timeout
-	for i := 0; i < cs.MaxRetryCount; i++ {
-		conn.SetDeadline(time.Now().Add(cs.TimeoutInterval))
-		if err := cs.fetch(conn, encoded, dest); err != nil {
-			continue
+	if cs.MaxRetryCount == -1 {
+		for {
+			conn.SetDeadline(time.Now().Add(cs.TimeoutInterval))
+			if err := cs.fetch(conn, encoded, dest); err != nil {
+				continue
+			}
+			return nil
 		}
-		return nil
+	} else {
+		for i := 0; i < cs.MaxRetryCount; i++ {
+			conn.SetDeadline(time.Now().Add(cs.TimeoutInterval))
+			if err := cs.fetch(conn, encoded, dest); err != nil {
+				continue
+			}
+			return nil
+		}
 	}
 
 	return errors.New("failed to get response")
