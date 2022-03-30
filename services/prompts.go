@@ -24,7 +24,7 @@ func (ui *UIService) GetMainPrompt() *survey.Select {
 
 func (ui *UIService) GetSubPromptsForAction() map[models.UserSelectedAction][]*survey.Question {
 	return map[models.UserSelectedAction][]*survey.Question{
-		models.OpenAccountAction:  {ui.getNameQn(), ui.getCurrencyQn(), ui.getPasswordQn()},
+		models.OpenAccountAction:  {ui.getNameQn(), ui.getCurrencyQn(), ui.getInitialAccountBalanceQn(), ui.getPasswordQn()},
 		models.CloseAccountAction: {ui.getAccountNumberQn(), ui.getNameQn(), ui.getPasswordQn()},
 		models.GetBalanceAction:   {ui.getAccountNumberQn(), ui.getNameQn(), ui.getCurrencyQn(), ui.getPasswordQn()},
 		models.DepositAction:      {ui.getAccountNumberQn(), ui.getNameQn(), ui.getCurrencyQn(), ui.getAmountQn(), ui.getPasswordQn()},
@@ -36,6 +36,10 @@ func (ui *UIService) GetSubPromptsForAction() map[models.UserSelectedAction][]*s
 
 func (ui *UIService) getPasswordQn() *survey.Question {
 	return ui.makePasswordQuestion("password", "What is your password?")
+}
+
+func (ui *UIService) getInitialAccountBalanceQn() *survey.Question {
+	return ui.makeTextQuestion("initialBalance", "What is your initial account balance?")
 }
 
 func (ui *UIService) getNameQn() *survey.Question {

@@ -71,7 +71,7 @@ func listenForCallbacks(conn *net.UDPConn, intervalEnd time.Time) error {
 			continue
 		}
 
-		services.PP.Print(respData, "- Updated Accounts -", "")
+		services.PP.Print(respData, "", "")
 	}
 
 	return nil
