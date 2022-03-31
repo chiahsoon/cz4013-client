@@ -38,6 +38,7 @@ func (a UserSelectedAction) IsValid() error {
 	return errors.New("invalid action")
 }
 
+// To be used when displaying the main menu
 func (a UserSelectedAction) Description() string {
 	switch a {
 	case OpenAccountAction:

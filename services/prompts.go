@@ -23,6 +23,7 @@ func (ui *UIService) GetMainPrompt() *survey.Select {
 }
 
 func (ui *UIService) GetSubPromptsForAction() map[models.UserSelectedAction][]*survey.Question {
+	// Return new instances of the prompts
 	return map[models.UserSelectedAction][]*survey.Question{
 		models.OpenAccountAction:  {ui.getNameQn(), ui.getCurrencyQn(), ui.getInitialAccountBalanceQn(), ui.getPasswordQn()},
 		models.CloseAccountAction: {ui.getAccountNumberQn(), ui.getNameQn(), ui.getPasswordQn()},

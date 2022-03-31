@@ -65,6 +65,7 @@ func listenForCallbacks(conn *net.UDPConn, intervalEnd time.Time) error {
 			return err
 		}
 
+		// Monitoring callbacks will always be string data
 		var respData string
 		if err := codec.DecodeAsInterface(resp.Data, &respData); err != nil {
 			services.PP.PrintError(err.Error(), "", "")

@@ -22,12 +22,15 @@ func (cs *ConnectionService) Fetch(conn *net.UDPConn, req interface{}, dest inte
 	if err != nil {
 		return err
 	}
+
+	// If maybe, just fetch once regardless
 	if cs.InvocationSemantic == config.Maybe {
 		return cs.fetch(conn, encoded, dest)
 	}
 
 	defer conn.SetDeadline(time.Time{}) // Reset to no timeout
 	if cs.MaxRetryCount == -1 {
+		// Retry infinitely
 		for {
 			conn.SetDeadline(time.Now().Add(cs.TimeoutInterval))
 			if err := cs.fetch(conn, encoded, dest); err != nil {
